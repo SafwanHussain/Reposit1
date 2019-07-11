@@ -1,0 +1,39 @@
+package Aggreagtions
+
+trait Context {
+
+  lazy val sparkConf = new SparkConf()
+    .setAppName("Agg Country Data")
+    .setMaster("local[*]")
+    .set("spark.cores.max", "2")
+
+  lazy val sparkSession = SparkSession
+    .builder()
+    .config(sparkConf)
+    .getOrCreate()
+}
+
+import org.apache.spark.sql.types._
+
+object CountryAgg extends App with Context {
+
+var schema = StructType(Array(StructField("Country", StringType, true),StructField("Values", StringType, true)))
+
+val countryDF = sparkSession.read
+          .schema(schema)
+          .option("header", "true")
+          .option("delimiter", ",")
+          .csv("data.csv")
+		  
+df.write.parquet("country.parquet");
+
+val parquetDF = sparkSession.read.parquet("country.parquet");
+
+val splitDf  = parquetDF.select("country",seq(parquetDF.values.split(";")) as values)
+
+val sum_arr = udf((list: Seq[Seq[Int]]) => list.transpose.map(values => values.sum))
+
+splitDf.groupBy('country').agg(sum_arr(collect_list('values')) as "summed_values")).write.parquet("final_country_agg.parquet");
+
+}
+

@@ -1,0 +1,22 @@
+Program explanation:
+
+spark session is encapsulated into a simple trait called context.
+A SparkSession takes a SparkConf where i've specified a name for our Spark application,the Spark master which is our local node 
+and also have limited the use of only 2 cores.
+CountryAgg Object will make use of the Context trait. By extending the Context trait, we will have access to a SparkSession.
+
+
+We are using structType which is collection of StructFields to specify the schema.
+we then read the csv file which is assumed to be in the default location in hdfs, using read method of a dataframe.
+This CSV is written and converted to a parquet file by using write.parquet method of dataframe.
+
+we again create a dataframe out of the parquet file and load it in spark.
+we create a splitDF to have country as a one of the field as stringType and values as Seq(Int).
+
+The reason we convert values to Seq[values] is to pass it to the sum_arr(UDF), where transpose is applied to this list to perform 
+element wise sum.
+
+This UDF is called with the help of collect_list which sends the colelcts all the lists grouped by country to the summ_arr udf, which 
+then is aggregated.
+
+The result is written to a parquet file final_country_agg.parquet on hdfs default location. 
