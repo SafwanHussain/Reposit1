@@ -1,0 +1,97 @@
+Cumulative Sum
+**************
+
+Input : Monthly_EMI.csv
+
+ID   Month EMI
+1    Jan   5000
+2    Feb   4000
+3    Mar   3000
+4    Apr   6000
+5    May   8000
+6    Jun   2000
+7    Jul   9000
+8    Aug   5000
+..
+..
+..
+..
+
+Output : Cumulative_Sum.csv
+
+Id Month EMI    Cum_Sum
+1  Jan   5000   5000
+2  Feb   4000   9000
+3  Mar   3000   12000
+4  Apr   6000   18000
+5  May   8000   26000 
+..
+..
+..
+..
+
+Approach :
+***********
+
+Leverage the window functions of dataframes to perform the cumulative sum.
+use a Row frame 'rowsBetween (Window.unboundedPreceding, 0)' to have a pointer to current row and the proceeding rows.
+
+Steps:
+******
+1) create a context trait 
+
+trait Context {
+
+  lazy val sparkConf = new SparkConf()
+    .setAppName("Agg Country Data")
+    .setMaster("local[*]")
+    .set("spark.cores.max", "2")
+
+  lazy val sparkSession = SparkSession
+    .builder()
+    .config(sparkConf)
+    .getOrCreate()
+}
+
+2) Extend the App trait with context
+
+import org.apache.spark.sql.types._
+import org.apache.spark.sql.expressions.Window
+import org.apache.spark.sql.expressions.WindowSpec
+
+object CummSumm extends App with Context {
+
+//defining the schema with the structType
+var schema = StructType(Array(StructField("Id", IntegerType, true),StructField("Month", StringType, true),StructField("EMI", IntegerType, true)))
+
+//creating the dataframe by reading the input file
+
+val EmiDF = sparkSession.read
+          .schema(schema)
+          .option("header", "true")
+          .option("delimiter", ",")
+          .csv("Monthly_EMI.csv")
+
+//define the window and frame of the data
+
+Cumm_window = Window.paritionBy('Month').orderBy('Id').rowsBetween(Window.unboundedPreceding, 0);
+
+//create the final dataframe with cumulative result over the window and frame defined above
+
+Cumm_summ = EmiDF.withColumn("Cum_Sum",sum(EmiDF.EMI).over(Cumm_window))	  
+
+//write the resultant dataframe to a file on disk in csv format
+
+Cumm_summ.write.format("csv").save(filepath)
+		  
+}
+
+--using sparkSql
+
+EmiDf.CreateOrReplaceTempView("Monthly_Emi");
+
+Cumm_summ = sparkSession.sql("""select id,month,emi, sum(EMI) 
+                              |over(parition by Month order by Id rows between UNBOUNDED PRECEDING AND CURRENT ROW) as Cum_Sum""".stripMargin);
+
+
+Cumm_summ.write.format("csv").save(filepath)
